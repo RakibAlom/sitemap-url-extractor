@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitemap URL Extractor</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for output area */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 md:p-6">
+    <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-7xl">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Sitemap URL Extractor</h1>
+
+        <div class="flex flex-col md:flex-row md:space-x-8">
+            <div class="md:w-1/2 flex flex-col space-y-6">
+                
+                <div class="p-5 bg-green-50 rounded-lg border border-green-200 shadow-sm">
+                    <h2 class="text-xl font-semibold text-green-700 mb-3">1. Extract from Sitemap XML Code (Direct Parse)</h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Paste the raw XML content (sitemap or sitemap index). This option will directly extract all `<loc>` URLs found within the pasted content. It will NOT attempt to fetch external sub-sitemaps from the network.
+                    </p>
+                    <textarea id="sitemapXmlInput" rows="8" placeholder="Paste your sitemap XML content here..."
+                              class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 resize-y mb-3 text-sm"></textarea>
+                    <button id="extractXmlBtn"
+                            class="w-full px-5 py-2.5 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition duration-300 ease-in-out shadow-md text-sm">
+                        Extract URLs from XML
+                    </button>
+                </div>
+
+                <div class="p-5 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
+                    <h2 class="text-xl font-semibold text-blue-700 mb-3">2. Extract from Sitemap URL (Limited)</h2>
+                    <p class="text-sm text-gray-600 mb-4 font-bold text-red-600">
+                        &#9888; IMPORTANT: Browser Security Restriction &#9888;
+                        <br>
+                        This tool, running in your browser, CANNOT bypass Cross-Origin Resource Sharing (CORS) policies. It will only work if the sitemap's server explicitly allows cross-origin requests from where this tool is hosted, or if you use a server-side proxy.
+                        <br><br>
+                        For most external websites, direct fetching will result in a "Failed to fetch" error. This is a browser security feature, not a tool malfunction.
+                    </p>
+                    <div class="flex flex-col gap-3">
+                        <input type="url" id="sitemapUrlInput" placeholder="e.g., https://example.com/sitemap.xml"
+                               class="flex-grow p-2.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <button id="extractUrlBtn"
+                                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md text-sm">
+                            Attempt Extract via URL
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md:w-1/2 mt-6 md:mt-0 p-5 bg-gray-50 rounded-lg border border-gray-200 shadow-sm flex flex-col">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3 flex items-center justify-between">
+                    Extracted URLs
+                    <div class="flex space-x-2"> <button id="clearUrlsBtn" class="px-3 py-1.5 bg-gray-300 text-gray-800 text-xs font-medium rounded-md hover:bg-gray-400 transition duration-300 ease-in-out">
+                            Clear
+                        </button>
+                        <button id="copyUrlsBtn" class="px-3 py-1.5 bg-gray-300 text-gray-800 text-xs font-medium rounded-md hover:bg-gray-400 transition duration-300 ease-in-out">
+                            Copy All
+                        </button>
+                    </div>
+                </h2>
+                <textarea id="outputUrls" rows="20" readonly
+                          class="flex-grow w-full p-2.5 border border-gray-300 rounded-md bg-white text-gray-800 resize-none custom-scrollbar shadow-inner text-sm"></textarea>
+            </div>
+        </div>
+        
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            Developed by <a href="https://rakibalom.com/" target="_blank" class="text-blue-600 hover:underline">Rakib Alom</a>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sitemapUrlInput = document.getElementById('sitemapUrlInput');
+            const extractUrlBtn = document.getElementById('extractUrlBtn');
+            const sitemapXmlInput = document.getElementById('sitemapXmlInput');
+            const extractXmlBtn = document.getElementById('extractXmlBtn');
+            const outputUrls = document.getElementById('outputUrls');
+            const copyUrlsBtn = document.getElementById('copyUrlsBtn');
+            const clearUrlsBtn = document.getElementById('clearUrlsBtn'); // Get the new clear button
+
+            // --- Core XML Parsing Function ---
+            // Parses XML string and returns an array of all <loc> tag contents.
+            // Does NOT perform network requests.
+            function parseXmlAndExtractLocs(xmlString) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+                const urls = [];
+
+                // Check for parsing errors
+                const errorNode = xmlDoc.querySelector('parsererror');
+                if (errorNode) {
+                    throw new Error(`Invalid XML format. Please ensure it's a valid sitemap XML.\nParser Error: ${errorNode.textContent}`);
+                }
+
+                // Get URLs from <urlset><url><loc> (standard sitemap)
+                const urlLocElements = xmlDoc.querySelectorAll('urlset url loc');
+                urlLocElements.forEach(loc => {
+                    const url = loc.textContent.trim();
+                    if (url) urls.push(url);
+                });
+
+                // Get sitemap URLs from <sitemapindex><sitemap><loc> (sitemap index)
+                const sitemapLocElements = xmlDoc.querySelectorAll('sitemapindex sitemap loc');
+                sitemapLocElements.forEach(loc => {
+                    const url = loc.textContent.trim();
+                    if (url) urls.push(url);
+                });
+
+                return urls;
+            }
+
+            // --- Feature 1: Recursive URL Fetching and Parsing (Browser's CORS Rules Apply) ---
+            const allExtractedUrls = new Set();
+            const processedSitemaps = new Set();
+
+            async function fetchAndProcessSitemapRecursively(sitemapUrl) {
+                if (processedSitemaps.has(sitemapUrl)) {
+                    console.warn(`Skipping already processed sitemap: ${sitemapUrl}`);
+                    return;
+                }
+                processedSitemaps.add(sitemapUrl);
+
+                try {
+                    // This fetch call is subject to CORS restrictions.
+                    const response = await fetch(sitemapUrl); 
+                    if (!response.ok) {
+                        // This branch will be hit if CORS blocks the request or if there's an HTTP error
+                        throw new Error(`HTTP error! Status: ${response.status} for URL: ${sitemapUrl}.`);
+                    }
+                    const xmlText = await response.text();
+                    
+                    const locs = parseXmlAndExtractLocs(xmlText);
+
+                    const isSitemapIndex = xmlText.includes('<sitemapindex'); 
+
+                    if (isSitemapIndex) {
+                        const subSitemapPromises = locs.map(subSitemapUrl => 
+                            fetchAndProcessSitemapRecursively(subSitemapUrl)
+                        );
+                        await Promise.all(subSitemapPromises);
+                    } else {
+                        locs.forEach(foundUrl => allExtractedUrls.add(foundUrl));
+                    }
+
+                } catch (error) {
+                    console.error(`Failed to fetch or parse sitemap from ${sitemapUrl}:`, error);
+                    // Add an error message to the output for the user
+                    allExtractedUrls.add(`ERROR: Could not fetch/parse ${sitemapUrl} - ${error.message}`);
+                }
+            }
+
+            extractUrlBtn.addEventListener('click', async () => {
+                const sitemapUrl = sitemapUrlInput.value.trim();
+                if (!sitemapUrl) {
+                    outputUrls.value = "Please enter a sitemap URL.";
+                    return;
+                }
+
+                allExtractedUrls.clear();
+                processedSitemaps.clear();
+                outputUrls.value = "Attempting to fetch sitemap(s)... This is subject to browser CORS policies.\n\n" +
+                                   "If you see 'Failed to fetch' errors, it means the website does not allow direct access from your browser due to security settings.";
+
+                try {
+                    await fetchAndProcessSitemapRecursively(sitemapUrl);
+
+                    if (allExtractedUrls.size === 0 || (allExtractedUrls.size === 1 && Array.from(allExtractedUrls)[0].startsWith('ERROR:'))) {
+                        outputUrls.value = "No URLs found (or only errors were encountered). This is typically due to browser CORS restrictions preventing fetching from other domains, an invalid sitemap URL, or an empty sitemap. Please try Option 1 (pasting XML directly).";
+                    } else {
+                        const finalUrls = Array.from(allExtractedUrls).filter(url => !url.startsWith('ERROR:')).sort();
+                        const errorMessages = Array.from(allExtractedUrls).filter(url => url.startsWith('ERROR:')).join('\n');
+                        
+                        outputUrls.value = (errorMessages ? "Errors encountered:\n" + errorMessages + '\n\n' : '') + 
+                                           (finalUrls.length > 0 ? "Extracted URLs:\n" + finalUrls.join('\n') : "No valid URLs extracted.");
+                    }
+                } catch (error) {
+                    outputUrls.value = `An overall error occurred during extraction: ${error.message}. This is likely due to CORS or a critical issue with the initial URL. Please try Option 1 (pasting the XML content directly).`;
+                    console.error("Overall extraction error:", error);
+                }
+            });
+
+            // --- Feature 2: Direct XML Code Parsing ---
+            extractXmlBtn.addEventListener('click', () => {
+                const xmlContent = sitemapXmlInput.value.trim();
+                if (!xmlContent) {
+                    outputUrls.value = "Please paste sitemap XML content.";
+                    return;
+                }
+
+                try {
+                    const urls = parseXmlAndExtractLocs(xmlContent);
+
+                    if (urls.length === 0) {
+                        outputUrls.value = "No URLs found in the pasted XML. Please check the content.";
+                    } else {
+                        outputUrls.value = urls.sort().join('\n');
+                    }
+                } catch (error) {
+                    outputUrls.value = `Error processing pasted XML: ${error.message}`;
+                    console.error("Error processing pasted XML:", error);
+                }
+            });
+
+            // --- Copy All Button ---
+            copyUrlsBtn.addEventListener('click', () => {
+                outputUrls.select();
+                outputUrls.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                copyUrlsBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyUrlsBtn.textContent = 'Copy All';
+                }, 1500);
+            });
+
+            // --- Clear Output Button ---
+            clearUrlsBtn.addEventListener('click', () => {
+                outputUrls.value = ''; // Clear the textarea content
+                // Optionally, clear internal sets if you want to completely reset state for next run
+                allExtractedUrls.clear();
+                processedSitemaps.clear();
+            });
+        });
+    </script>
+</body>
+</html>
