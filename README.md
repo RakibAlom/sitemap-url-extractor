@@ -30,8 +30,6 @@ A powerful web-based tool to extract and analyze URLs from any XML sitemap, incl
 
 No installation required. Simply open `index.html` in any modern web browser.
 
-# Or serve locally
-
 # 👨‍💻 Author
 Developed by Rakib Alom
 
