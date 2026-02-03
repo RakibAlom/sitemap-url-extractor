@@ -3,238 +3,1082 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sitemap URL Extractor</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Sitemap URL Extractor | Extract URLs from XML Sitemaps</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* Custom scrollbar for output area */
-        .custom-scrollbar::-webkit-scrollbar {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%, #0f0f1a 100%);
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .glass-input:focus {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+            outline: none;
+        }
+
+        .glass-button {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.8) 0%, rgba(139, 92, 246, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .glass-button:hover::before {
+            left: 100%;
+        }
+
+        .glass-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .glass-button:active {
+            transform: translateY(0);
+        }
+
+        .glass-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .glass-button:disabled:hover::before {
+            left: -100%;
+        }
+
+        .secondary-button {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .secondary-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .url-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .url-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .scrollbar-custom::-webkit-scrollbar {
             width: 8px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
+
+        .scrollbar-custom::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
+
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #555;
+
+        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: rgba(99, 102, 241, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-dot {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.8), rgba(139, 92, 246, 0.8));
+            transition: width 0.3s ease;
+        }
+
+        .tag {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .floating-shapes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.03);
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .shape:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: -5%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            top: 60%;
+            right: -3%;
+            animation-delay: -5s;
+        }
+
+        .shape:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            bottom: 10%;
+            left: 20%;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, -20px) rotate(5deg); }
+            50% { transform: translate(0, -30px) rotate(0deg); }
+            75% { transform: translate(-20px, -20px) rotate(-5deg); }
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            font-size: 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+            bottom: calc(100% + 8px);
+        }
+
+        .copy-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .copy-notification.show {
+            transform: translateY(0);
+            opacity: 1;
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 md:p-6">
-    <div class="bg-white p-6 md:p-8 rounded-lg shadow-xl w-full max-w-7xl">
-        <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Sitemap URL Extractor</h1>
+<body class="font-inter text-gray-200">
+    <!-- Floating Background Shapes -->
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
 
-        <div class="flex flex-col md:flex-row md:space-x-8">
-            <div class="md:w-1/2 flex flex-col space-y-6">
-                
-                <div class="p-5 bg-green-50 rounded-lg border border-green-200 shadow-sm">
-                    <h2 class="text-xl font-semibold text-green-700 mb-3">1. Extract from Sitemap XML Code (Direct Parse)</h2>
-                    <p class="text-sm text-gray-600 mb-4">
-                        Paste the raw XML content (sitemap or sitemap index). This option will directly extract all `<loc>` URLs found within the pasted content. It will NOT attempt to fetch external sub-sitemaps from the network.
-                    </p>
-                    <textarea id="sitemapXmlInput" rows="8" placeholder="Paste your sitemap XML content here..."
-                              class="w-full p-2.5 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 resize-y mb-3 text-sm"></textarea>
-                    <button id="extractXmlBtn"
-                            class="w-full px-5 py-2.5 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition duration-300 ease-in-out shadow-md text-sm">
-                        Extract URLs from XML
+    <!-- Copy Notification -->
+    <div id="copyNotification" class="copy-notification">
+        <span id="notificationText">Copied to clipboard!</span>
+    </div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto">
+            <!-- Header -->
+            <header class="text-center mb-10 fade-in">
+                <div class="inline-flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">Sitemap URL Extractor</h1>
+                </div>
+                <p class="text-gray-400 text-sm sm:text-base max-w-xl mx-auto">
+                    Extract all URLs from any sitemap.xml file including nested sub-sitemaps. 
+                    Just paste the sitemap URL and get a complete list.
+                </p>
+            </header>
+
+            <!-- Main Input Card -->
+            <div class="glass-card rounded-2xl p-6 sm:p-8 mb-8 fade-in" style="animation-delay: 0.1s;">
+                <form id="sitemapForm" class="space-y-6">
+                    <div>
+                        <label for="sitemapUrl" class="block text-sm font-medium text-gray-300 mb-2">
+                            Sitemap URL
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                            </div>
+                            <input 
+                                type="url" 
+                                id="sitemapUrl" 
+                                placeholder="https://example.com/sitemap.xml"
+                                class="glass-input w-full pl-12 pr-4 py-4 rounded-xl text-white placeholder-gray-500 text-sm sm:text-base"
+                                required
+                            >
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">Enter the complete URL of the sitemap.xml file</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button 
+                            type="submit" 
+                            id="extractBtn"
+                            class="glass-button flex-1 py-4 px-6 rounded-xl text-white font-semibold flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span id="extractBtnText">Extract URLs</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            id="clearBtn"
+                            class="secondary-button py-4 px-6 rounded-xl text-gray-300 font-medium flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden glass-card rounded-2xl p-8 mb-8 text-center">
+                <div class="loader mx-auto mb-4"></div>
+                <p class="text-gray-300 font-medium" id="loadingText">Fetching sitemap...</p>
+                <p class="text-gray-500 text-sm mt-2" id="loadingSubtext">This may take a moment for large sitemaps</p>
+                <div class="mt-4 h-2 bg-gray-800 rounded-full overflow-hidden max-w-md mx-auto">
+                    <div id="progressBar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
+                </div>
+                <p class="text-gray-500 text-xs mt-2" id="progressText">0 URLs found</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="hidden glass-card rounded-2xl p-6 mb-8 border-red-500/30">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-red-400 font-semibold">Error Occurred</h3>
+                        <p id="errorMessage" class="text-gray-400 text-sm mt-1"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden space-y-6 fade-in">
+                <!-- Statistics Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card rounded-xl p-4 sm:p-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-400 text-xs sm:text-sm">Total URLs</span>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-bold text-white" id="totalUrls">0</p>
+                    </div>
+
+                    <div class="stat-card rounded-xl p-4 sm:p-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-400 text-xs sm:text-sm">Sitemaps</span>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-bold text-white" id="totalSitemaps">1</p>
+                    </div>
+
+                    <div class="stat-card rounded-xl p-4 sm:p-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-400 text-xs sm:text-sm">Status</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-bold text-green-400" id="statusText">Success</p>
+                    </div>
+
+                    <div class="stat-card rounded-xl p-4 sm:p-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-400 text-xs sm:text-sm">Time Taken</span>
+                        </div>
+                        <p class="text-lg sm:text-xl font-bold text-white" id="timeTaken">0s</p>
+                    </div>
+                </div>
+
+                <!-- Sitemap Info -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Sitemap Information
+                    </h3>
+                    <div class="grid gap-4 text-sm">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span class="text-gray-400 min-w-32">Source URL:</span>
+                            <code id="sourceUrl" class="text-indigo-400 bg-black/30 px-3 py-1 rounded-lg break-all"></code>
+                        </div>
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span class="text-gray-400 min-w-32">Type:</span>
+                            <span id="sitemapType" class="tag px-3 py-1 rounded-lg text-indigo-300"></span>
+                        </div>
+                        <div id="subSitemapsInfo" class="hidden flex-col sm:flex-row sm:items-start gap-2">
+                            <span class="text-gray-400 min-w-32">Sub-sitemaps:</span>
+                            <div id="subSitemapsList" class="flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-3">
+                    <button 
+                        id="copyAllBtn"
+                        class="secondary-button py-3 px-5 rounded-xl text-gray-300 font-medium flex items-center gap-2 text-sm"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                        </svg>
+                        Copy All URLs
+                    </button>
+                    <button 
+                        id="downloadCsvBtn"
+                        class="secondary-button py-3 px-5 rounded-xl text-gray-300 font-medium flex items-center gap-2 text-sm"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Download CSV
+                    </button>
+                    <button 
+                        id="downloadTxtBtn"
+                        class="secondary-button py-3 px-5 rounded-xl text-gray-300 font-medium flex items-center gap-2 text-sm"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Download TXT
                     </button>
                 </div>
 
-                <div class="p-5 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
-                    <h2 class="text-xl font-semibold text-blue-700 mb-3">2. Extract from Sitemap URL (Limited)</h2>
-                    <p class="text-sm text-gray-600 mb-4 font-bold text-red-600">
-                        &#9888; IMPORTANT: Browser Security Restriction &#9888;
-                        <br>
-                        This tool, running in your browser, CANNOT bypass Cross-Origin Resource Sharing (CORS) policies. It will only work if the sitemap's server explicitly allows cross-origin requests from where this tool is hosted, or if you use a server-side proxy.
-                        <br><br>
-                        For most external websites, direct fetching will result in a "Failed to fetch" error. This is a browser security feature, not a tool malfunction.
+                <!-- Search and Filter -->
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                        <div class="relative flex-1">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="Search URLs..."
+                                class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-gray-500 text-sm"
+                            >
+                        </div>
+                        <select id="filterSelect" class="glass-input py-3 px-4 rounded-xl text-white text-sm min-w-40">
+                            <option value="all">All URLs</option>
+                            <option value="page">Pages only</option>
+                            <option value="image">Images</option>
+                            <option value="video">Videos</option>
+                        </select>
+                    </div>
+                    <p class="text-gray-400 text-sm">
+                        Showing <span id="showingCount" class="text-white font-medium">0</span> of <span id="totalCount" class="text-white font-medium">0</span> URLs
                     </p>
-                    <div class="flex flex-col gap-3">
-                        <input type="url" id="sitemapUrlInput" placeholder="e.g., https://example.com/sitemap.xml"
-                               class="flex-grow p-2.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        <button id="extractUrlBtn"
-                                class="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md text-sm">
-                            Attempt Extract via URL
+                </div>
+
+                <!-- URL List -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        URL List
+                    </h3>
+                    <div id="urlList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-custom pr-2">
+                        <!-- URLs will be rendered here -->
+                    </div>
+                    <div id="loadMoreContainer" class="hidden mt-4 text-center">
+                        <button id="loadMoreBtn" class="secondary-button py-2 px-6 rounded-lg text-gray-300 text-sm">
+                            Load More
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div class="md:w-1/2 mt-6 md:mt-0 p-5 bg-gray-50 rounded-lg border border-gray-200 shadow-sm flex flex-col">
-                <h2 class="text-xl font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                    Extracted URLs
-                    <div class="flex space-x-2"> <button id="clearUrlsBtn" class="px-3 py-1.5 bg-gray-300 text-gray-800 text-xs font-medium rounded-md hover:bg-gray-400 transition duration-300 ease-in-out">
-                            Clear
-                        </button>
-                        <button id="copyUrlsBtn" class="px-3 py-1.5 bg-gray-300 text-gray-800 text-xs font-medium rounded-md hover:bg-gray-400 transition duration-300 ease-in-out">
-                            Copy All
-                        </button>
-                    </div>
-                </h2>
-                <textarea id="outputUrls" rows="20" readonly
-                          class="flex-grow w-full p-2.5 border border-gray-300 rounded-md bg-white text-gray-800 resize-none custom-scrollbar shadow-inner text-sm"></textarea>
-            </div>
+            <!-- Footer -->
+            <footer class="mt-16 text-center fade-in" style="animation-delay: 0.3s;">
+                <div class="glass-card inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm">
+                    <span class="text-gray-400">Developed by</span>
+                    <a 
+                        href="https://rakibalom.com/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        class="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                    >
+                        Rakib Alom
+                    </a>
+                </div>
+                <p class="text-gray-600 text-xs mt-4">© 2024 Sitemap URL Extractor. All rights reserved.</p>
+            </footer>
         </div>
-        
-        <footer class="mt-8 text-center text-gray-500 text-sm">
-            Developed by <a href="https://rakibalom.com/" target="_blank" class="text-blue-600 hover:underline">Rakib Alom</a>
-        </footer>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sitemapUrlInput = document.getElementById('sitemapUrlInput');
-            const extractUrlBtn = document.getElementById('extractUrlBtn');
-            const sitemapXmlInput = document.getElementById('sitemapXmlInput');
-            const extractXmlBtn = document.getElementById('extractXmlBtn');
-            const outputUrls = document.getElementById('outputUrls');
-            const copyUrlsBtn = document.getElementById('copyUrlsBtn');
-            const clearUrlsBtn = document.getElementById('clearUrlsBtn'); // Get the new clear button
+        // Global state
+        let allUrls = [];
+        let filteredUrls = [];
+        let displayedCount = 0;
+        const ITEMS_PER_PAGE = 50;
 
-            // --- Core XML Parsing Function ---
-            // Parses XML string and returns an array of all <loc> tag contents.
-            // Does NOT perform network requests.
-            function parseXmlAndExtractLocs(xmlString) {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlString, "application/xml");
-                const urls = [];
+        // CORS Proxies for fallback
+        const CORS_PROXIES = [
+            (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        ];
 
-                // Check for parsing errors
-                const errorNode = xmlDoc.querySelector('parsererror');
-                if (errorNode) {
-                    throw new Error(`Invalid XML format. Please ensure it's a valid sitemap XML.\nParser Error: ${errorNode.textContent}`);
+        // DOM Elements
+        const sitemapForm = document.getElementById('sitemapForm');
+        const sitemapUrlInput = document.getElementById('sitemapUrl');
+        const extractBtn = document.getElementById('extractBtn');
+        const extractBtnText = document.getElementById('extractBtnText');
+        const clearBtn = document.getElementById('clearBtn');
+        const loadingState = document.getElementById('loadingState');
+        const loadingText = document.getElementById('loadingText');
+        const loadingSubtext = document.getElementById('loadingSubtext');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const errorState = document.getElementById('errorState');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsSection = document.getElementById('resultsSection');
+        const urlList = document.getElementById('urlList');
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const copyNotification = document.getElementById('copyNotification');
+        const notificationText = document.getElementById('notificationText');
+
+        // Fetch with CORS proxy fallback
+        async function fetchWithFallback(url) {
+            // First try direct fetch
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/xml, text/xml, */*'
+                    }
+                });
+                if (response.ok) {
+                    return await response.text();
                 }
-
-                // Get URLs from <urlset><url><loc> (standard sitemap)
-                const urlLocElements = xmlDoc.querySelectorAll('urlset url loc');
-                urlLocElements.forEach(loc => {
-                    const url = loc.textContent.trim();
-                    if (url) urls.push(url);
-                });
-
-                // Get sitemap URLs from <sitemapindex><sitemap><loc> (sitemap index)
-                const sitemapLocElements = xmlDoc.querySelectorAll('sitemapindex sitemap loc');
-                sitemapLocElements.forEach(loc => {
-                    const url = loc.textContent.trim();
-                    if (url) urls.push(url);
-                });
-
-                return urls;
+            } catch (e) {
+                console.log('Direct fetch failed, trying proxies...');
             }
 
-            // --- Feature 1: Recursive URL Fetching and Parsing (Browser's CORS Rules Apply) ---
-            const allExtractedUrls = new Set();
-            const processedSitemaps = new Set();
-
-            async function fetchAndProcessSitemapRecursively(sitemapUrl) {
-                if (processedSitemaps.has(sitemapUrl)) {
-                    console.warn(`Skipping already processed sitemap: ${sitemapUrl}`);
-                    return;
-                }
-                processedSitemaps.add(sitemapUrl);
-
+            // Try CORS proxies
+            for (let i = 0; i < CORS_PROXIES.length; i++) {
                 try {
-                    // This fetch call is subject to CORS restrictions.
-                    const response = await fetch(sitemapUrl); 
-                    if (!response.ok) {
-                        // This branch will be hit if CORS blocks the request or if there's an HTTP error
-                        throw new Error(`HTTP error! Status: ${response.status} for URL: ${sitemapUrl}.`);
+                    const proxyUrl = CORS_PROXIES[i](url);
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        return await response.text();
                     }
-                    const xmlText = await response.text();
+                } catch (e) {
+                    console.log(`Proxy ${i + 1} failed, trying next...`);
+                }
+            }
+
+            throw new Error('Failed to fetch sitemap. Please check the URL and try again.');
+        }
+
+        // Parse XML string to document
+        function parseXML(xmlString) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+            
+            // Check for parsing errors
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+                throw new Error('Invalid XML format');
+            }
+            
+            return xmlDoc;
+        }
+
+        // Check if sitemap is a sitemap index (contains other sitemaps)
+        function isSitemapIndex(xmlDoc) {
+            const sitemapIndex = xmlDoc.getElementsByTagName('sitemapindex')[0];
+            return sitemapIndex !== null && sitemapIndex !== undefined;
+        }
+
+        // Get sitemap URLs from sitemap index
+        function getSitemapUrls(xmlDoc) {
+            const urls = [];
+            const sitemaps = xmlDoc.getElementsByTagName('sitemap');
+            
+            for (let i = 0; i < sitemaps.length; i++) {
+                const locElement = sitemaps[i].getElementsByTagName('loc')[0];
+                if (locElement && locElement.textContent) {
+                    urls.push(locElement.textContent.trim());
+                }
+            }
+            
+            return urls;
+        }
+
+        // Extract URLs from a sitemap
+        function extractUrlsFromSitemap(xmlDoc) {
+            const urls = [];
+            const urlElements = xmlDoc.getElementsByTagName('url');
+            
+            for (let i = 0; i < urlElements.length; i++) {
+                const locElement = urlElements[i].getElementsByTagName('loc')[0];
+                if (locElement && locElement.textContent) {
+                    const urlData = {
+                        loc: locElement.textContent.trim(),
+                        lastmod: null,
+                        changefreq: null,
+                        priority: null
+                    };
                     
-                    const locs = parseXmlAndExtractLocs(xmlText);
+                    // Get optional fields
+                    const lastmod = urlElements[i].getElementsByTagName('lastmod')[0];
+                    if (lastmod) urlData.lastmod = lastmod.textContent.trim();
+                    
+                    const changefreq = urlElements[i].getElementsByTagName('changefreq')[0];
+                    if (changefreq) urlData.changefreq = changefreq.textContent.trim();
+                    
+                    const priority = urlElements[i].getElementsByTagName('priority')[0];
+                    if (priority) urlData.priority = priority.textContent.trim();
+                    
+                    urls.push(urlData);
+                }
+            }
+            
+            return urls;
+        }
 
-                    const isSitemapIndex = xmlText.includes('<sitemapindex'); 
+        // Update progress UI
+        function updateProgress(current, total, message) {
+            const percentage = Math.min((current / Math.max(total, 1)) * 100, 100);
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${current} URLs found`;
+            if (message) {
+                loadingSubtext.textContent = message;
+            }
+        }
 
-                    if (isSitemapIndex) {
-                        const subSitemapPromises = locs.map(subSitemapUrl => 
-                            fetchAndProcessSitemapRecursively(subSitemapUrl)
-                        );
-                        await Promise.all(subSitemapPromises);
-                    } else {
-                        locs.forEach(foundUrl => allExtractedUrls.add(foundUrl));
+        // Main extraction function
+        async function extractSitemap(url) {
+            const startTime = Date.now();
+            let totalSitemaps = 0;
+            let subSitemapUrls = [];
+            allUrls = [];
+
+            try {
+                // Show loading state
+                loadingState.classList.remove('hidden');
+                errorState.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                extractBtn.disabled = true;
+                extractBtnText.textContent = 'Extracting...';
+
+                // Fetch main sitemap
+                loadingText.textContent = 'Fetching main sitemap...';
+                const xmlContent = await fetchWithFallback(url);
+                const xmlDoc = parseXML(xmlContent);
+
+                if (isSitemapIndex(xmlDoc)) {
+                    // It's a sitemap index - get all sub-sitemaps
+                    loadingText.textContent = 'Detected sitemap index, fetching sub-sitemaps...';
+                    subSitemapUrls = getSitemapUrls(xmlDoc);
+                    totalSitemaps = subSitemapUrls.length;
+
+                    // Fetch each sub-sitemap
+                    for (let i = 0; i < subSitemapUrls.length; i++) {
+                        try {
+                            loadingSubtext.textContent = `Processing sitemap ${i + 1} of ${totalSitemaps}`;
+                            const subXmlContent = await fetchWithFallback(subSitemapUrls[i]);
+                            const subXmlDoc = parseXML(subXmlContent);
+                            
+                            // Check if sub-sitemap is also an index (nested)
+                            if (isSitemapIndex(subXmlDoc)) {
+                                const nestedUrls = getSitemapUrls(subXmlDoc);
+                                for (const nestedUrl of nestedUrls) {
+                                    try {
+                                        const nestedXmlContent = await fetchWithFallback(nestedUrl);
+                                        const nestedXmlDoc = parseXML(nestedXmlContent);
+                                        const urls = extractUrlsFromSitemap(nestedXmlDoc);
+                                        allUrls = allUrls.concat(urls);
+                                        updateProgress(allUrls.length, 0, `Processing nested sitemap...`);
+                                    } catch (e) {
+                                        console.warn(`Failed to fetch nested sitemap: ${nestedUrl}`);
+                                    }
+                                }
+                            } else {
+                                const urls = extractUrlsFromSitemap(subXmlDoc);
+                                allUrls = allUrls.concat(urls);
+                            }
+                            
+                            updateProgress(allUrls.length, 0, `Processed ${i + 1} of ${totalSitemaps} sitemaps`);
+                        } catch (e) {
+                            console.warn(`Failed to fetch sub-sitemap: ${subSitemapUrls[i]}`);
+                        }
                     }
+                } else {
+                    // Regular sitemap
+                    totalSitemaps = 1;
+                    allUrls = extractUrlsFromSitemap(xmlDoc);
+                    updateProgress(allUrls.length, allUrls.length, 'Extraction complete');
+                }
 
-                } catch (error) {
-                    console.error(`Failed to fetch or parse sitemap from ${sitemapUrl}:`, error);
-                    // Add an error message to the output for the user
-                    allExtractedUrls.add(`ERROR: Could not fetch/parse ${sitemapUrl} - ${error.message}`);
+                const endTime = Date.now();
+                const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+
+                // Display results
+                displayResults(url, allUrls, totalSitemaps, subSitemapUrls, timeTaken);
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingState.classList.add('hidden');
+                extractBtn.disabled = false;
+                extractBtnText.textContent = 'Extract URLs';
+            }
+        }
+
+        // Display results
+        function displayResults(sourceUrl, urls, sitemapCount, subSitemaps, timeTaken) {
+            // Update stats
+            document.getElementById('totalUrls').textContent = urls.length.toLocaleString();
+            document.getElementById('totalSitemaps').textContent = sitemapCount;
+            document.getElementById('timeTaken').textContent = `${timeTaken}s`;
+            document.getElementById('sourceUrl').textContent = sourceUrl;
+            document.getElementById('sitemapType').textContent = subSitemaps.length > 0 ? 'Sitemap Index' : 'Regular Sitemap';
+
+            // Show sub-sitemaps if any
+            if (subSitemaps.length > 0) {
+                const subSitemapsInfo = document.getElementById('subSitemapsInfo');
+                const subSitemapsList = document.getElementById('subSitemapsList');
+                subSitemapsInfo.classList.remove('hidden');
+                subSitemapsInfo.classList.add('flex');
+                
+                subSitemapsList.innerHTML = subSitemaps.slice(0, 5).map(url => {
+                    const shortUrl = new URL(url).pathname;
+                    return `<span class="tag px-2 py-1 rounded text-xs text-indigo-300 truncate max-w-48" title="${url}">${shortUrl}</span>`;
+                }).join('');
+                
+                if (subSitemaps.length > 5) {
+                    subSitemapsList.innerHTML += `<span class="tag px-2 py-1 rounded text-xs text-gray-400">+${subSitemaps.length - 5} more</span>`;
                 }
             }
 
-            extractUrlBtn.addEventListener('click', async () => {
-                const sitemapUrl = sitemapUrlInput.value.trim();
-                if (!sitemapUrl) {
-                    outputUrls.value = "Please enter a sitemap URL.";
-                    return;
-                }
+            // Initialize filtered URLs
+            filteredUrls = [...urls];
+            displayedCount = 0;
 
-                allExtractedUrls.clear();
-                processedSitemaps.clear();
-                outputUrls.value = "Attempting to fetch sitemap(s)... This is subject to browser CORS policies.\n\n" +
-                                   "If you see 'Failed to fetch' errors, it means the website does not allow direct access from your browser due to security settings.";
+            // Update counts
+            document.getElementById('showingCount').textContent = Math.min(ITEMS_PER_PAGE, urls.length);
+            document.getElementById('totalCount').textContent = urls.length.toLocaleString();
 
-                try {
-                    await fetchAndProcessSitemapRecursively(sitemapUrl);
+            // Render URL list
+            renderUrlList();
 
-                    if (allExtractedUrls.size === 0 || (allExtractedUrls.size === 1 && Array.from(allExtractedUrls)[0].startsWith('ERROR:'))) {
-                        outputUrls.value = "No URLs found (or only errors were encountered). This is typically due to browser CORS restrictions preventing fetching from other domains, an invalid sitemap URL, or an empty sitemap. Please try Option 1 (pasting XML directly).";
-                    } else {
-                        const finalUrls = Array.from(allExtractedUrls).filter(url => !url.startsWith('ERROR:')).sort();
-                        const errorMessages = Array.from(allExtractedUrls).filter(url => url.startsWith('ERROR:')).join('\n');
-                        
-                        outputUrls.value = (errorMessages ? "Errors encountered:\n" + errorMessages + '\n\n' : '') + 
-                                           (finalUrls.length > 0 ? "Extracted URLs:\n" + finalUrls.join('\n') : "No valid URLs extracted.");
-                    }
-                } catch (error) {
-                    outputUrls.value = `An overall error occurred during extraction: ${error.message}. This is likely due to CORS or a critical issue with the initial URL. Please try Option 1 (pasting the XML content directly).`;
-                    console.error("Overall extraction error:", error);
-                }
-            });
+            // Show results section
+            resultsSection.classList.remove('hidden');
+        }
 
-            // --- Feature 2: Direct XML Code Parsing ---
-            extractXmlBtn.addEventListener('click', () => {
-                const xmlContent = sitemapXmlInput.value.trim();
-                if (!xmlContent) {
-                    outputUrls.value = "Please paste sitemap XML content.";
-                    return;
-                }
+        // Render URL list
+        function renderUrlList(reset = true) {
+            if (reset) {
+                urlList.innerHTML = '';
+                displayedCount = 0;
+            }
 
-                try {
-                    const urls = parseXmlAndExtractLocs(xmlContent);
+            const startIndex = displayedCount;
+            const endIndex = Math.min(displayedCount + ITEMS_PER_PAGE, filteredUrls.length);
 
-                    if (urls.length === 0) {
-                        outputUrls.value = "No URLs found in the pasted XML. Please check the content.";
-                    } else {
-                        outputUrls.value = urls.sort().join('\n');
-                    }
-                } catch (error) {
-                    outputUrls.value = `Error processing pasted XML: ${error.message}`;
-                    console.error("Error processing pasted XML:", error);
-                }
-            });
+            for (let i = startIndex; i < endIndex; i++) {
+                const urlData = filteredUrls[i];
+                const urlItem = createUrlItem(urlData, i + 1);
+                urlList.appendChild(urlItem);
+            }
 
-            // --- Copy All Button ---
-            copyUrlsBtn.addEventListener('click', () => {
-                outputUrls.select();
-                outputUrls.setSelectionRange(0, 99999);
+            displayedCount = endIndex;
+
+            // Update showing count
+            document.getElementById('showingCount').textContent = displayedCount;
+
+            // Show/hide load more button
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            if (displayedCount < filteredUrls.length) {
+                loadMoreContainer.classList.remove('hidden');
+            } else {
+                loadMoreContainer.classList.add('hidden');
+            }
+        }
+
+        // Create URL item element
+        function createUrlItem(urlData, index) {
+            const div = document.createElement('div');
+            div.className = 'url-item rounded-lg p-3 flex items-center gap-3 group';
+            
+            const type = getUrlType(urlData.loc);
+            const typeIcon = getTypeIcon(type);
+            
+            div.innerHTML = `
+                <span class="text-gray-500 text-xs font-mono min-w-10">${index}</span>
+                <div class="w-8 h-8 rounded-lg bg-gray-800/50 flex items-center justify-center flex-shrink-0">
+                    ${typeIcon}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <a href="${urlData.loc}" target="_blank" rel="noopener noreferrer" 
+                       class="text-gray-300 hover:text-indigo-400 text-sm truncate block transition-colors">
+                        ${urlData.loc}
+                    </a>
+                    ${urlData.lastmod ? `<span class="text-gray-600 text-xs">Last modified: ${urlData.lastmod}</span>` : ''}
+                </div>
+                <button 
+                    onclick="copyToClipboard('${urlData.loc.replace(/'/g, "\\'")}')" 
+                    class="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-700/50 rounded-lg transition-all tooltip"
+                    data-tooltip="Copy URL"
+                >
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                    </svg>
+                </button>
+            `;
+            
+            return div;
+        }
+
+        // Get URL type
+        function getUrlType(url) {
+            const lower = url.toLowerCase();
+            if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(lower)) return 'image';
+            if (/\.(mp4|webm|avi|mov|wmv)(\?.*)?$/i.test(lower)) return 'video';
+            if (/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?.*)?$/i.test(lower)) return 'document';
+            return 'page';
+        }
+
+        // Get type icon
+        function getTypeIcon(type) {
+            const icons = {
+                page: '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                image: '<svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
+                video: '<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>',
+                document: '<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>'
+            };
+            return icons[type] || icons.page;
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
                 document.execCommand('copy');
-                copyUrlsBtn.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyUrlsBtn.textContent = 'Copy All';
-                }, 1500);
+                document.body.removeChild(textarea);
+                showNotification('Copied to clipboard!');
+            });
+        }
+
+        // Show notification
+        function showNotification(message) {
+            notificationText.textContent = message;
+            copyNotification.classList.add('show');
+            setTimeout(() => {
+                copyNotification.classList.remove('show');
+            }, 2000);
+        }
+
+        // Show error
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorState.classList.remove('hidden');
+        }
+
+        // Filter URLs
+        function filterUrls() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterType = filterSelect.value;
+
+            filteredUrls = allUrls.filter(urlData => {
+                const matchesSearch = urlData.loc.toLowerCase().includes(searchTerm);
+                const matchesType = filterType === 'all' || getUrlType(urlData.loc) === filterType;
+                return matchesSearch && matchesType;
             });
 
-            // --- Clear Output Button ---
-            clearUrlsBtn.addEventListener('click', () => {
-                outputUrls.value = ''; // Clear the textarea content
-                // Optionally, clear internal sets if you want to completely reset state for next run
-                allExtractedUrls.clear();
-                processedSitemaps.clear();
+            document.getElementById('totalCount').textContent = filteredUrls.length.toLocaleString();
+            renderUrlList(true);
+        }
+
+        // Copy all URLs
+        function copyAllUrls() {
+            const urlText = filteredUrls.map(u => u.loc).join('\n');
+            copyToClipboard(urlText);
+            showNotification(`Copied ${filteredUrls.length} URLs to clipboard!`);
+        }
+
+        // Download as CSV
+        function downloadCSV() {
+            const headers = ['URL', 'Last Modified', 'Change Frequency', 'Priority'];
+            const rows = filteredUrls.map(u => [
+                u.loc,
+                u.lastmod || '',
+                u.changefreq || '',
+                u.priority || ''
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(field => `"${field}"`).join(',') + '\n';
             });
+
+            downloadFile(csv, 'sitemap-urls.csv', 'text/csv');
+        }
+
+        // Download as TXT
+        function downloadTXT() {
+            const text = filteredUrls.map(u => u.loc).join('\n');
+            downloadFile(text, 'sitemap-urls.txt', 'text/plain');
+        }
+
+        // Download file helper
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotification(`Downloaded ${filename}`);
+        }
+
+        // Clear results
+        function clearResults() {
+            sitemapUrlInput.value = '';
+            allUrls = [];
+            filteredUrls = [];
+            urlList.innerHTML = '';
+            resultsSection.classList.add('hidden');
+            errorState.classList.add('hidden');
+            searchInput.value = '';
+            filterSelect.value = 'all';
+        }
+
+        // Event Listeners
+        sitemapForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const url = sitemapUrlInput.value.trim();
+            if (url) {
+                extractSitemap(url);
+            }
+        });
+
+        clearBtn.addEventListener('click', clearResults);
+
+        searchInput.addEventListener('input', debounce(filterUrls, 300));
+        filterSelect.addEventListener('change', filterUrls);
+
+        document.getElementById('copyAllBtn').addEventListener('click', copyAllUrls);
+        document.getElementById('downloadCsvBtn').addEventListener('click', downloadCSV);
+        document.getElementById('downloadTxtBtn').addEventListener('click', downloadTXT);
+        document.getElementById('loadMoreBtn').addEventListener('click', () => renderUrlList(false));
+
+        // Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Add sample URL on placeholder click for demo
+        sitemapUrlInput.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'https://example.com/sitemap.xml';
+            }
         });
     </script>
 </body>
